@@ -56,9 +56,109 @@ connector grant is attached properly. The prompts below are written to be pasted
 
 ---
 
-## To create in the claude.ai UI
+## Audit of the existing routine fleet
+
+This account already runs a multi-agent company scaffold (`omanai.co`), created through the
+HTTP API with connectors properly attached. Any new routine has to fit into this, not duplicate
+it.
+
+| Routine | Schedule (UTC) | Oman local | Connectors |
+|---|---|---|---|
+| Layla — Operations & PM | `0 4,12 * * *` | 08:00, 16:00 **daily** | Todoist, Calendar, Gmail, Drive |
+| Hilal — Chief of Staff | `30 4,12 * * 0-4` | 08:30, 16:30 **Sun–Thu** | Todoist, Drive |
+| Tariq — VP Engineering | `0 5,8,11 * * 0-4` | 09:00, 12:00, 15:00 Sun–Thu | Drive |
+| Open PRs summary | `0 5 * * 1-5` | 09:00 Mon–Fri | 13 connectors |
+
+The design is sound — Layla collects, Hilal rolls up 30 minutes later, Tariq reports
+engineering into the same Drive folder. Two scheduling bugs undercut it.
+
+### Bug A — weekend Ops digests are never rolled up
+
+Layla runs **every day** (`* * *`). Hilal runs **Sunday–Thursday** (`* * 0-4`).
+
+So Layla writes ops digests on Friday and Saturday that Hilal is not scheduled to read. They
+are not merely late — they are permanently skipped, because Hilal's prompt scopes collection to
+"the last ~9 hours as a proxy for since last run." At Sunday 04:30 UTC that window reaches back
+only to Saturday 19:30 UTC. Friday's two digests and Saturday's two digests all fall outside
+it.
+
+**Net effect: up to four ops digests per week are written and never read by anything.**
+
+Two ways to fix, pick one:
+- Align Layla to the same week as Hilal: `0 4,12 * * 0-4`. Correct if the weekend runs have no
+  value.
+- Keep the daily cadence and widen Hilal's Sunday lookback to cover the weekend explicitly.
+  Correct if weekend inbox and calendar activity matters — which, for legal deadline work, it
+  plausibly does.
+
+### Bug B — Hilal's morning rollup structurally cannot see Engineering
+
+Tariq fires at **05:00, 08:00, 11:00** UTC. Hilal's morning run is **04:30** UTC — thirty
+minutes *before* Tariq's first run of the day.
+
+Combined with the same 9-hour lookback, Hilal's 04:30 window covers 19:30 (previous day) to
+04:30. Tariq's most recent digest at that moment is from 11:00 the previous day — 17.5 hours
+earlier, well outside the window.
+
+**Net effect: the morning company digest never contains engineering, on any day.** Only the
+12:30 UTC run picks Tariq up.
+
+Fix options:
+- Move Hilal's morning run after Tariq's first: `30 5,12 * * 0-4` — but note this then collides
+  with Tariq's 05:00 rather than following it cleanly, so `45 5` is safer.
+- Or widen Hilal's lookback from ~9 hours to 24 hours, which also mitigates Bug A.
+- Or move Tariq's first run earlier, before 04:30.
+
+The 24-hour lookback is the smallest change that addresses both bugs at once.
+
+### Connector over-granting on "Open PRs summary"
+
+That routine holds **13 connectors** — Apollo, Canva, Cloudflare, Figma, Gmail, Calendar,
+Drive, HubSpot, Orbismo, TickTick, Todoist, WorkOS, Zapier — to summarize pull requests. It
+needs GitHub and nothing else.
+
+Every one of those is a live credential in an unattended session that will never use it. This
+is the MCP supply-chain concern from the main README, except self-inflicted: an unattended
+routine is exactly where least privilege matters most, because no human sees the tool calls.
+Strip it to GitHub.
+
+### Model assignment
+
+All three division agents run `claude-sonnet-5`. That is reasonable for Layla (collect and
+route) and Tariq (read and report), but Hilal's job — cross-checking multiple digests for
+conflicts neither division noticed, and overriding tier calls with justification — is the
+reasoning-heaviest role in the fleet. It is the one worth a stronger model.
+
+### Where the two new routines fit
+
+Neither overlaps the fleet. The AI Stack Digest covers your own tooling, not company ops; the
+Fork Sync Watch covers a repo no division agent touches. The Saturday and Monday slots also sit
+outside the Sun–Thu division cadence.
+
+---
+
+## Reconsidered: what NOT to create
+
+The three prompts below were drafted before the fleet audit above. **Two of them now look like
+duplication rather than addition** — recorded here with that caveat rather than as
+recommendations:
+
+- **Morning Brief (3)** — Layla's AM cycle already does Todoist → Calendar → Gmail triage, at
+  08:00 Oman. A morning brief would be a second agent reading the same three sources an hour
+  apart. Deleting it was correct twice over.
+- **Weekly Close-the-Loop Review (4)** — partially overlaps Layla's STALLED/BLOCKED section.
+  The genuinely additive part is the *weekly* horizon, which nothing currently covers: Layla
+  and Hilal both operate on a per-cycle window and neither ever looks back seven days. Worth
+  creating only if narrowed to that.
+- **Deadline Sweep (5)** — this one is **not** covered by any existing agent, and is the one
+  worth creating. Nothing in the fleet looks forward 14 days for external hard deadlines.
+
+Fix the two scheduling bugs before adding anything. A fleet that silently drops four digests a
+week does not need a fifth agent.
 
 ### 3. Morning Brief — Sunday–Thursday, 07:05 Oman
+
+*(Superseded by Layla — recorded for reference only.)*
 
 Requires: **Gmail, Google Calendar, Todoist**
 
@@ -81,6 +181,9 @@ You also have the `morning` skill enabled, which can set this up conversationall
 
 ### 4. Weekly Close-the-Loop Review — Thursdays, 16:40 Oman
 
+*(Partially overlaps Layla. Create only if narrowed to the 7-day horizon, which nothing else
+covers.)*
+
 Requires: **Gmail, Google Calendar, Todoist**
 
 > It is the end of my work week (Oman, Sunday–Thursday). Help me close loops rather than summarize activity.
@@ -95,6 +198,8 @@ Requires: **Gmail, Google Calendar, Todoist**
 > Read-and-report only: do not send emails or modify tasks.
 
 ### 5. Client and Matter Deadline Sweep — Sundays, 08:10 Oman
+
+**Recommended.** No existing agent looks forward for external hard deadlines.
 
 Requires: **Gmail, Google Calendar, Todoist** (add **Google Drive** if matter files live there)
 
@@ -138,6 +243,26 @@ jobs are **session-only, in-memory, and auto-expire after 7 days** — they vani
 session ends. Routines (`create_trigger`) are durable and account-level.
 
 For anything you want next month, use Routines.
+
+## GitHub identity tangle
+
+Three GitHub identities are in play across this account's automation, and the mismatches are
+already blocking work:
+
+| Identity | Role | Consequence |
+|---|---|---|
+| `aj-omanai` | Owns `1st` and the skills fork; authored PRs #1 and #2 | The identity that actually has write access |
+| `liquidmercury999-web` | The identity Claude Code sessions authenticate as | Can push via the git proxy but **cannot open pull requests** on `aj-omanai/*` — rejected with `422 must be a collaborator` |
+| `diegosouzapw` | Upstream owner of OmniRoute | Tariq's documented Phase 0 blocker: `push=false` |
+
+The first two are the same person and should not be two accounts. Until they are reconciled,
+every Claude Code session on these repos can commit and push but must hand PR creation back to
+you manually. That is a recurring tax on exactly the workflow the routines are meant to
+automate.
+
+Fix: add `liquidmercury999-web` as a collaborator on `aj-omanai/1st` and the skills fork, or
+run sessions under `aj-omanai`. The `diegosouzapw` question is genuinely separate — it is a
+licensing relationship with a third party, correctly flagged as human-owned.
 
 ## Design notes
 
