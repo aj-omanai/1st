@@ -1,0 +1,97 @@
+SECTION 2: INSTALLATION INSTRUCTIONS FOR THE USER
+
+Step 1: Save the Files in a directory (e.g. gemini-mcp-server/):
+  - Dockerfile
+  - requirements.txt
+  - gemini_server.py
+  - README.md
+
+Step 2: Build the Docker image
+  docker build -t gemini-mcp-server .
+
+Step 3: Store your Gemini API key as a Docker MCP secret
+  docker mcp secret set GEMINI_API_KEY=YOUR_KEY_HERE
+  (Get a key at https://aistudio.google.com/apikey)
+
+Step 4: Create/edit ~/.docker/mcp/catalogs/custom.yaml and add:
+
+version: 2
+name: custom
+displayName: Custom MCP Servers
+registry:
+  gemini:
+    description: "Call Google Gemini models from Claude"
+    title: "Gemini"
+    type: server
+    dateAdded: "2026-07-25T00:00:00Z"
+    image: gemini-mcp-server:latest
+    ref: ""
+    readme: ""
+    toolsUrl: ""
+    source: ""
+    upstream: ""
+    icon: ""
+    tools:
+      - name: gemini_ask
+      - name: gemini_chat
+      - name: gemini_list_models
+    secrets:
+      - name: GEMINI_API_KEY
+        env: GEMINI_API_KEY
+    metadata:
+      category: ai
+      tags:
+        - gemini
+        - google
+        - llm
+      license: MIT
+      owner: local
+
+Step 5: Update ~/.docker/mcp/registry.yaml — under the existing registry: key,
+add:
+
+registry:
+  # ... existing servers ...
+  gemini:
+    ref: ""
+
+Step 6: Configure Claude Desktop
+  Edit the Claude Desktop config file (see paths below) and make sure your
+  custom catalog is in the gateway args, alongside docker-mcp.yaml:
+
+  macOS:   ~/Library/Application Support/Claude/claude_desktop_config.json
+  Windows: %APPDATA%\Claude\claude_desktop_config.json
+  Linux:   ~/.config/Claude/claude_desktop_config.json
+
+  {
+    "mcpServers": {
+      "mcp-toolkit-gateway": {
+        "command": "docker",
+        "args": [
+          "run", "-i", "--rm",
+          "-v", "/var/run/docker.sock:/var/run/docker.sock",
+          "-v", "[YOUR_HOME]/.docker/mcp:/mcp",
+          "docker/mcp-gateway",
+          "--catalog=/mcp/catalogs/docker-mcp.yaml",
+          "--catalog=/mcp/catalogs/custom.yaml",
+          "--config=/mcp/config.yaml",
+          "--registry=/mcp/registry.yaml",
+          "--tools-config=/mcp/tools.yaml",
+          "--transport=stdio"
+        ]
+      }
+    }
+  }
+
+Step 7: Restart Claude Desktop, then ask:
+  "Use gemini to summarize the last paragraph of this document."
+  "Ask gemini-2.5-pro for a second opinion."
+  "List available Gemini models."
+
+Troubleshooting:
+  - "GEMINI_API_KEY is not set" -> re-run `docker mcp secret set GEMINI_API_KEY=...`
+    and make sure the catalog entry includes the `secrets:` block.
+  - HTTP 403 / 404 -> the model name is wrong or your key can't access it;
+    run gemini_list_models to see what's available.
+  - See logs:
+      docker logs $(docker ps -a | grep gemini-mcp-server | awk '{print $1}')
