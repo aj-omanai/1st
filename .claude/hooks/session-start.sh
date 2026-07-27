@@ -1,13 +1,21 @@
 #!/bin/bash
-# Installs Python dependencies for every example MCP server so that
-# `python` can import each server module during a web session (needed for
-# syntax checks, quick smoke runs, and any test tooling added later).
+# Session startup for Claude Code on the web.
+#  1. Installs the Gemini CLI so the `gemini` command is available alongside
+#     Claude Code.
+#  2. Installs Python dependencies for every example MCP server so that
+#     `python` can import each server module during a web session (needed for
+#     syntax checks, quick smoke runs, and any test tooling added later).
 set -euo pipefail
 
-# Only run in Claude Code on the web; local sessions likely already have
-# their own environment set up.
+# Only run in Claude Code on the web (remote, ephemeral container); local
+# sessions likely already have their own environment set up.
 if [ "${CLAUDE_CODE_REMOTE:-}" != "true" ]; then
   exit 0
+fi
+
+# Install Gemini CLI if not already present.
+if ! command -v gemini >/dev/null 2>&1; then
+  npm install -g @google/gemini-cli
 fi
 
 cd "${CLAUDE_PROJECT_DIR:-$(pwd)}"
