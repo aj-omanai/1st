@@ -200,6 +200,39 @@ Found a bug? Have an improvement? Contributions are welcome!
 4. Push to the branch
 5. Open a Pull Request
 
+## 📦 Combined Projects
+
+This repo also bundles several other agent/MCP-tooling projects on the
+`combine-projects-clean` branch, each merged in with `git subtree` — full
+history retained, each keeping its own `LICENSE` and `README` intact in its
+own folder. Nothing was overwritten or flattened together.
+
+| Folder | Project | Original upstream | License |
+|---|---|---|---|
+| `anthropic-cybersecurity-skills/` | 817 structured cybersecurity skills for AI agents | [mukul975/Anthropic-Cybersecurity-Skills](https://github.com/mukul975/Anthropic-Cybersecurity-Skills) | Apache-2.0 |
+| `omniroute/` | Free AI gateway — 290+ providers, 500+ models, one endpoint | [diegosouzapw/OmniRoute](https://github.com/diegosouzapw/OmniRoute) | see `omniroute/LICENSE` |
+| `strix/` | Open-source AI penetration testing agent | [usestrix/strix](https://github.com/usestrix/strix) | see `strix/LICENSE` |
+| `herdr/` | Agent multiplexer for the terminal | [ogulcancelik/herdr](https://github.com/ogulcancelik/herdr) | see `herdr/LICENSE` |
+| `orca/` | ADE for running a fleet of parallel coding agents | [stablyai/orca](https://github.com/stablyai/orca) | see `orca/LICENSE` |
+| `codebase-memory-mcp/` | Code intelligence MCP server | [DeusData/codebase-memory-mcp](https://github.com/DeusData/codebase-memory-mcp) | see `codebase-memory-mcp/LICENSE` |
+| `openmontage/` | Open-source agentic video production system | [calesthio/OpenMontage](https://github.com/calesthio/OpenMontage) | see `openmontage/LICENSE` |
+| `page-agent/` | In-page GUI agent for controlling web UIs via natural language | [alibaba/page-agent](https://github.com/alibaba/page-agent) | see `page-agent/LICENSE` |
+| `meetily/` | Privacy-first, local AI meeting assistant | [Zackriya-Solutions/meetily](https://github.com/Zackriya-Solutions/meetily) | see `meetily/LICENSE` |
+
+**Deliberately excluded** (never entered this branch's history at all, not just
+removed from the tree): `omanai-co` — private internal org docs, never previously
+public; `system_prompts_leaks` — redistributes other companies' leaked, non-public
+system prompts, unrelated to this repo and a needless legal/reputational risk;
+`awesome` — a generic, unrelated curated-links list with no thematic connection to
+agent/MCP tooling.
+
+**Not yet merged:** `CheckHKRCE` and `PoC` are pending — both are owned by `root`
+on the source machine (not the account that ran this merge), which blocks a safe
+`git subtree` merge until ownership is corrected there.
+
+Each subfolder keeps its own documentation — the sections above and below this one
+cover only the original Docker MCP Tutorial content this repo started as.
+
 ## 📄 License
 
 MIT License - See [LICENSE](LICENSE) file for details
